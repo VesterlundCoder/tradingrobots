@@ -1,18 +1,14 @@
 //+------------------------------------------------------------------+
-//|               SqueezeBreakoutNVDA_M5.mq5                        |
-//|  TTM Squeeze Breakout — NVDA (US Stock CFD) — M5                |
-//|                                                                   |
-//|  HFT Lab scan (NVDA M5, Squeeze_Break strategy):                |
-//|    OOS Sharpe: +8.9 | OOS Trades: 38 | IS Sharpe: +14.2        |
-//|    Best params: bb_period=20, bb_std=2.0, kc_mult=1.5           |
+//|               SqueezeBreakout_Universal.mq5                      |
+//|  TTM Squeeze Breakout — Forex / CFD — M1 or M5                  |
 //|                                                                   |
 //|  Logic (TTM Squeeze):                                            |
 //|  - "Squeeze ON": Bollinger Bands inside Keltner Channel          |
 //|  - "Squeeze OFF": BB exits KC → momentum release                 |
 //|  - Direction: close above EMA = long, below EMA = short          |
 //|                                                                   |
-//|  Indicators on chart: BB(20,2) + Keltner(20,1.5×ATR) + EMA50   |
-//|  NYSE session only — stock CFD requires NY market hours          |
+//|  Attach to: any forex pair or CFD on M1 or M5                   |
+//|  Session filter defaults to London-NY overlap (07:00-20:00 UTC) |
 //|                                                                   |
 //|  Leverage: Risk_Pct × Leverage_Mult (default 0.10% × 30 = 3%)  |
 //+------------------------------------------------------------------+
@@ -33,9 +29,9 @@ input double SL_ATR_Mult   = 2.0;
 input double TP_ATR_Mult   = 6.0;
 input int    MaxHold_Bars  = 12;    // 12 × 5 min = 60 min max (NVDA is fast)
 
-input group "=== SESSION FILTER (NYSE) ==="
-input int    Session_Open_UTC  = 13;   // NYSE open (13:30 UTC)
-input int    Session_Close_UTC = 20;   // NYSE close
+input group "=== SESSION FILTER ==="
+input int    Session_Open_UTC  = 7;    // Session open UTC (London open)
+input int    Session_Close_UTC = 20;   // Session close UTC (NY close)
 input bool   UseSessionFilter  = true;
 
 input group "=== RISK + LEVERAGE ==="
@@ -48,7 +44,7 @@ input double MaxTotalDD_Pct   = 8.0;
 
 input group "=== EA IDENTITY ==="
 input long   MagicNumber  = 20260503;
-input string TradeComment = "Squeeze_NVDA_M5";
+input string TradeComment = "";       // Leave blank for auto: SYMBOL_Squeeze_TF
 
 CTrade trade;
 int h_bb, h_kc_ema, h_atr, h_ema;
@@ -63,9 +59,12 @@ double total_profit = 0.0;
 bool in_trend = false;
 string trend_direction = "";
 
+string g_comment;
+
 int OnInit()
 {
-   if(_Period != PERIOD_M5) { Alert("Attach to NVDA M5 chart."); return(INIT_FAILED); }
+   if(_Period != PERIOD_M1 && _Period != PERIOD_M5)
+      Print("[WARN] Squeeze EA optimised for M1/M5. Current TF: ", EnumToString(_Period));
    trade.SetExpertMagicNumber(MagicNumber);
    trade.SetDeviationInPoints(500);
    trade.SetTypeFilling(ORDER_FILLING_IOC);
@@ -82,8 +81,12 @@ int OnInit()
    g_day_start_balance = AccountInfoDouble(ACCOUNT_BALANCE); 
    g_entry_time = 0;
 
+   // Build dynamic comment if user left it blank
+   string tf = (_Period == PERIOD_M1) ? "M1" : (_Period == PERIOD_M5) ? "M5" : EnumToString(_Period);
+   g_comment = (TradeComment == "") ? _Symbol + "_Squeeze_" + tf : TradeComment;
+
    double eff_risk = Risk_Pct * Leverage_Mult;
-   Print("Squeeze NVDA M5 | BB(",BB_Period,",",BB_Std,") | KC(",KC_Period,",",KC_Mult,") | Eff risk=",eff_risk,"%");
+   Print("Squeeze | ",_Symbol," ",tf," | BB(",BB_Period,",",BB_Std,") | KC(",KC_Period,",",KC_Mult,") | Eff risk=",eff_risk,"% | Comment=",g_comment);
    return(INIT_SUCCEEDED);
 }
 
@@ -136,10 +139,11 @@ void OnTick()
       return;
    }
 
-   // Use session filter if enabled
+   // Session + weekend filter
    if(UseSessionFilter) {
       MqlDateTime t; 
       TimeToStruct(TimeCurrent(), t);
+      if(t.day_of_week == 0 || t.day_of_week == 6) return;   // no weekend
       if(t.hour < Session_Open_UTC || t.hour >= Session_Close_UTC) return;
    }
 
@@ -192,7 +196,7 @@ void OnTick()
 
    // Open initial long and short positions
    if(long_signal && long_positions < 3) {
-      if(trade.Buy(lot, _Symbol, ask, ask - atr*SL_ATR_Mult, ask + atr*TP_ATR_Mult, TradeComment))
+      if(trade.Buy(lot, _Symbol, ask, ask - atr*SL_ATR_Mult, ask + atr*TP_ATR_Mult, g_comment))
       { 
          g_entry_time = TimeCurrent(); 
          long_positions++;
@@ -201,7 +205,7 @@ void OnTick()
    } 
 
    if(short_signal && short_positions < 3) {
-      if(trade.Sell(lot, _Symbol, bid, bid + atr*SL_ATR_Mult, bid - atr*TP_ATR_Mult, TradeComment))
+      if(trade.Sell(lot, _Symbol, bid, bid + atr*SL_ATR_Mult, bid - atr*TP_ATR_Mult, g_comment))
       { 
          g_entry_time = TimeCurrent(); 
          short_positions++;
