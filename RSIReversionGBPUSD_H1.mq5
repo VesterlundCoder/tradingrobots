@@ -42,7 +42,8 @@ input bool   UseSessionFilter  = true;
 
 //── Risk ─────────────────────────────────────────────────────────────
 input group "=== RISK ==="
-input double Risk_Pct = 0.25;     // Risk per trade (% of balance)
+input double Risk_Pct = 0.10;     // Base risk % per trade (leverage amplifies this)
+input double Leverage_Mult = 30.0; // Broker leverage (1.0 = no leverage, 30.0 = 1:30)
 
 //── FTMO safety limits ────────────────────────────────────────────────
 input group "=== FTMO SAFETY LIMITS ==="
@@ -194,7 +195,7 @@ double CalcLot(double sl_dist)
     double lot_min   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
     double lot_max   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
     if(tick_val == 0 || sl_dist == 0) return lot_min;
-    double risk_money = balance * Risk_Pct / 100.0;
+    double risk_money = balance * Risk_Pct * Leverage_Mult / 100.0;
     double sl_ticks   = sl_dist / tick_size;
     double lot        = risk_money / (sl_ticks * tick_val);
     lot = MathFloor(lot / lot_step) * lot_step;

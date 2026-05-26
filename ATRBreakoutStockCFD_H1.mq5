@@ -47,7 +47,8 @@ input bool   UseSessionFilter  = true;
 input group "=== RISK & POSITION SIZING ==="
 input double SL_ATR_Mult   = 2.0;   // Stop loss = N × ATR
 input double TP_ATR_Mult   = 6.0;   // Take profit = N × ATR (R:R = 1:3)
-input double Risk_Pct      = 0.20;  // Risk per trade (% of balance) — tighter for stocks
+input double Risk_Pct      = 0.10;  // Base risk % per trade (leverage amplifies this)
+input double Leverage_Mult = 30.0;  // Broker leverage (1.0 = no leverage, 30.0 = 1:30)
 
 //── FTMO safety limits ────────────────────────────────────────────────
 input group "=== FTMO SAFETY LIMITS ==="
@@ -217,7 +218,7 @@ double CalcLot(double sl_dist)
 
     if(tick_val == 0 || sl_dist == 0) return lot_min;
 
-    double risk_money = balance * Risk_Pct / 100.0;
+    double risk_money = balance * Risk_Pct * Leverage_Mult / 100.0;
     double sl_ticks   = sl_dist / tick_size;
     double lot        = risk_money / (sl_ticks * tick_val);
 

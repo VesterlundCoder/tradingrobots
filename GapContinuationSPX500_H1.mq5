@@ -33,8 +33,9 @@ input int    Session_Open_UTC  = 13;   // NYSE open 13:30 UTC — use 13 to catc
 input int    Session_Close_UTC = 20;   // NYSE close
 input bool   UseSessionFilter  = true;
 
-input group "=== RISK ==="
-input double Risk_Pct = 0.25;
+input group "=== RISK + LEVERAGE ==="
+input double Risk_Pct      = 0.10;   // Base risk % per trade (leverage amplifies this)
+input double Leverage_Mult = 30.0;   // Broker leverage (1.0 = no leverage, 30.0 = 1:30)
 
 input group "=== FTMO SAFETY ==="
 input double MaxDailyLoss_Pct = 4.0;
@@ -128,7 +129,7 @@ double CalcLot(double sl_dist)
            ts=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE), ls=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP),
            lmin=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN), lmax=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX);
     if(tv==0||sl_dist==0) return lmin;
-    double lot=MathFloor((balance*Risk_Pct/100.0)/(sl_dist/ts*tv)/ls)*ls;
+    double lot=MathFloor((balance*Risk_Pct*Leverage_Mult/100.0)/(sl_dist/ts*tv)/ls)*ls;
     return MathMin(MathMax(lot,lmin),lmax);
 }
 
