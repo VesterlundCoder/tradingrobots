@@ -28,7 +28,8 @@ CTrade g_trade;
 
 //── Inputs ─────────────────────────────────────────────────────────
 input group "=== POSITION SIZING ==="
-input double InpLot            = 1.0;    // Fixed lot ($1/pt at most US30 CFDs)
+input double InpLot            = 0.10;   // Base lot — multiplied by Leverage_Mult
+input double Leverage_Mult     = 30.0;   // Broker leverage (1.0 = no leverage, 30.0 = 1:30)
 
 input group "=== ENTRY SIGNAL (tick momentum) ==="
 input int    InpTpPoints       = 2;      // Take profit in index points
@@ -250,9 +251,9 @@ void OnTick()
    // ── 6. Fire the trade ────────────────────────────────────────────
    bool ok = false;
    if(go_long)
-      ok = g_trade.Buy (InpLot, _Symbol, ask, sl_price, tp_price, "HFT_B");
+      ok = g_trade.Buy (InpLot * Leverage_Mult, _Symbol, ask, sl_price, tp_price, "HFT_B");
    else
-      ok = g_trade.Sell(InpLot, _Symbol, bid, sl_price, tp_price, "HFT_S");
+      ok = g_trade.Sell(InpLot * Leverage_Mult, _Symbol, bid, sl_price, tp_price, "HFT_S");
 
    if(ok)
    {

@@ -28,7 +28,8 @@ CTrade g_trade;
 
 //── Inputs ─────────────────────────────────────────────────────────
 input group "=== POSITION SIZING ==="
-input double InpLot             = 0.10;   // Lot size (0.10 = $1/pip on EURUSD)
+input double InpLot             = 0.01;   // Base lot — multiplied by Leverage_Mult
+input double Leverage_Mult      = 30.0;   // Broker leverage (1.0 = no leverage, 30.0 = 1:30)
 
 input group "=== ENTRY SIGNAL ==="
 input int    InpTpPips          = 2;      // Take profit in pips
@@ -261,8 +262,8 @@ void OnTick()
 
    // ── 6. Fire ──────────────────────────────────────────────────────
    bool ok = go_long
-      ? g_trade.Buy (InpLot, _Symbol, ask, sl_price, tp_price, "HFTF_B")
-      : g_trade.Sell(InpLot, _Symbol, bid, sl_price, tp_price, "HFTF_S");
+      ? g_trade.Buy (InpLot * Leverage_Mult, _Symbol, ask, sl_price, tp_price, "HFTF_B")
+      : g_trade.Sell(InpLot * Leverage_Mult, _Symbol, bid, sl_price, tp_price, "HFTF_S");
 
    if(ok)
    {
